@@ -1,0 +1,136 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OrcModels.Virtual.OrcApiExtension.Enums
+{
+    public enum OrcScreenCommand
+    {
+        /// <summary>
+        /// Standart props from form screen
+        /// </summary>
+        Std,
+
+        /// <summary>
+        /// Workflow form data
+        /// </summary>
+        FormData,
+
+        /// <summary>
+        /// Add field to screen from backend
+        /// Add_Field [Fieldname] [Data=fieldtype]
+        /// fieldtype : TextBox, TextArea, Date, CheckBox, DropDown, MultipleDropDown, HTMLText, MonthCalendar, Button, H1, H2, H3, p, HR, FileUpload, Tab
+        /// </summary>
+        Add_Field,
+
+        /// <summary>
+        /// Set field caption
+        /// Set_Caption [Fieldname] [Data as "captiontext"]
+        /// </summary>
+        Set_Caption,
+
+        /// <summary>
+        /// Set visibility of field
+        /// Set_Visible [Fieldname] [Data as "true/false"]
+        /// </summary>
+        Set_Visible,
+
+        /// <summary>
+        /// Set required of field
+        /// Set_Required [Fieldname] [Data as "true/false"]
+        /// </summary>
+        Set_Required,
+
+        /// <summary>
+        ///  Set fieldtype of field
+        /// Set_Fieldtype [Fieldname] [Data as "fieldtype"]
+        /// fieldtype : TextBox, TextArea, Date, CheckBox, DropDown, MultipleDropDown, HTMLText, MonthCalendar, Button, H1, H2, H3, p, HR, FileUpload, Tab
+        /// </summary>
+        Set_Fieldtype,
+
+        /// <summary>
+        /// Set order of field
+        /// Set_Fieldtype [Fieldname] [Data as "order no"]
+        /// </summary>
+        Set_FieldOrder,
+
+        /// <summary>
+        ///  Set value of field
+        /// </summary>
+        Set_Value,
+
+        /// <summary>
+        /// Add combo item to select field component, 01-Blue
+        /// Add_Item fieldName: Colors, 01-Blue
+        /// Add_Item fieldName: Colors, 02-Red
+        /// Add lines as option list
+        /// </summary>
+        Add_Item,
+
+        /// <summary>
+        /// Add combo item(s) to select field component, 01-Blue;02-Red;03-Yellow
+        /// </summary>
+        Add_Items,
+
+        /// <summary>
+        /// Remove combo item from screen
+        /// Remove_Item [fieldname] 
+        /// </summary>
+        Remove_Item,
+
+        /// <summary>
+        /// Remove field from screen
+        /// </summary>
+        Remove_Field,
+
+        /// <summary>
+        /// Set max length for textbox
+        /// </summary>
+        Set_MaxLength,
+
+
+        /// <summary>
+        /// Set row count for textarea
+        /// </summary>
+        Set_RowCount,
+
+
+        /// <summary>
+        /// Set placeholder
+        /// Insert as..
+        /// Set_Placeholder [fieldname] ["...text to data...."]
+        /// </summary>
+        Set_Placeholder,
+
+        /// <summary>
+        ///  Set enabled of field
+        /// Insert as..
+        /// Set_Enabled [fieldname] ["...text to data...."]
+        /// </summary>
+        Set_Enabled,
+
+        /// <summary>
+        ///  Set error for field
+        /// Insert as..
+        /// Set_Error [fieldname]
+        /// </summary>
+        Set_Error,
+
+        /// <summary>
+        ///  Set agent for next task
+        ///  Command = Set_Agent
+        ///  Fieldname = 
+        ///  Data = employee id for next employee
+        /// </summary>
+        Set_Agent,
+
+
+        /// <summary>
+        ///  Clear agents of next task, it it s from design time
+        ///  Command = Clear_Agents
+        /// </summary>
+        Clear_Agents,
+    }
+}
