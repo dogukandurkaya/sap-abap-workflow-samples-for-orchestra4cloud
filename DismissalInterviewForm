@@ -1,0 +1,296 @@
+"Dismissal Interview Form
+
+METHOD if_http_extension~handle_request.
+
+    DATA: proposed_values     TYPE TABLE OF pprop,
+          proposed_values_str TYPE pprop,
+          master_data	        TYPE TABLE OF	pprop,
+          master_data_str     TYPE pprop,
+          modified_keys	      TYPE TABLE OF	pskey,
+          modified_keys_str   TYPE pskey.
+
+    DATA: return  TYPE bapireturn,
+          return1 TYPE bapireturn1.
+
+    TYPES: BEGIN OF orcscreencommand,
+             command   TYPE string,
+             fieldname TYPE string,
+             data      TYPE string,
+             param1    TYPE string,
+             param2    TYPE string,
+             param3    TYPE string,
+             param4    TYPE string,
+           END OF orcscreencommand.
+
+    DATA: omodel_str  TYPE orcscreencommand.
+    DATA: omodel      TYPE TABLE OF orcscreencommand.
+
+    "Servis için Sabit işlemler
+    DATA : lo_action TYPE string.
+    DATA : lv_request_body TYPE string.
+    DATA : lo_json_deserializer TYPE REF TO cl_trex_json_deserializer.
+    DATA : l_json TYPE string.
+    DATA : lo_json_serializer TYPE REF TO cl_trex_json_serializer.
+
+    DATA : l_json1 TYPE string,
+           l_json2 TYPE string,
+           l_json3 TYPE string.
+
+    DATA : l_tab1 TYPE string,
+           l_tab2 TYPE string.
+
+    DATA : l1 TYPE xstring VALUE '0A00',
+           l3 TYPE xstring VALUE '0900',
+           l5 TYPE xstring VALUE '0D00',
+           l2 TYPE string,
+           l4 TYPE string,
+           l6 TYPE string.
+
+    DEFINE read_proposed_values .
+      CLEAR : proposed_values_str , &3 .
+      READ TABLE proposed_values INTO proposed_values_str WITH KEY infty = &1 fname = &2.
+      IF sy-subrc = 0 .&3 = proposed_values_str-fval.ENDIF .
+
+    END-OF-DEFINITION .
+    DEFINE set_proposed_values .
+      CLEAR : proposed_values_str .
+      READ TABLE proposed_values INTO proposed_values_str WITH KEY infty = &1 fname = &2.
+      IF sy-subrc = 0 .proposed_values_str-fval = &3 .MODIFY proposed_values FROM proposed_values_str INDEX sy-tabix .ENDIF .
+
+    END-OF-DEFINITION .
+    DEFINE read_values .
+      CLEAR : omodel_str , &3 .
+      READ TABLE omodel INTO omodel_str WITH KEY command = &1 fieldname = &2.
+      IF sy-subrc = 0 .&3 = omodel_str-data.ENDIF .
+
+    END-OF-DEFINITION .
+    DEFINE set_values .
+      CLEAR : omodel_str .
+      READ TABLE omodel INTO omodel_str WITH KEY command = &1 fieldname = &2.
+      IF sy-subrc = 0 .omodel_str-data = &3 .MODIFY omodel FROM omodel_str INDEX sy-tabix .ENDIF .
+
+    END-OF-DEFINITION .
+    DEFINE insert_values .
+      CLEAR : omodel_str .
+      omodel_str-command = &1 .
+      omodel_str-fieldname = &2 .
+      omodel_str-data = &3 .
+      APPEND omodel_str TO omodel .
+
+    END-OF-DEFINITION .
+
+    lo_action = server->request->get_header_field( name = '~request_method' ).
+    IF lo_action NE 'POST'.
+      CALL METHOD server->response->set_status( code = '405' reason = 'Hata!' ).
+    ENDIF.
+
+    CALL FUNCTION 'HR_KR_XSTRING_TO_STRING'
+      EXPORTING
+        in_xstring = l1
+      IMPORTING
+        out_string = l2.
+
+    CALL FUNCTION 'HR_KR_XSTRING_TO_STRING'
+      EXPORTING
+        in_xstring = l3
+      IMPORTING
+        out_string = l4.
+
+    CALL FUNCTION 'HR_KR_XSTRING_TO_STRING'
+      EXPORTING
+        in_xstring = l5
+      IMPORTING
+        out_string = l6.
+
+    lv_request_body = server->request->get_cdata( )."Body okunur
+
+    REPLACE ALL OCCURRENCES OF l2(1) IN lv_request_body WITH space IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF l4(1) IN lv_request_body WITH space IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF l6(1) IN lv_request_body WITH space IN CHARACTER MODE.
+
+    REPLACE ALL OCCURRENCES OF '"Command"' IN lv_request_body WITH 'Command' IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF '"Fieldname"' IN lv_request_body WITH 'Fieldname' IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF '"Data"' IN lv_request_body WITH 'Data' IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF '"Param1"' IN lv_request_body WITH 'Param1' IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF '"Param2"' IN lv_request_body WITH 'Param2' IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF '"Param3"' IN lv_request_body WITH 'Param3' IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF '"Param4"' IN lv_request_body WITH 'Param4' IN CHARACTER MODE.
+
+    CREATE OBJECT lo_json_deserializer.
+    lo_json_deserializer->deserialize(
+      EXPORTING
+        json = lv_request_body
+      IMPORTING
+        abap = omodel ).
+
+    "COMMAND = Std, ORC standart alanı
+    "COMMAND = FormData, ORC Implementationa özel alan
+
+    "Std için
+    "FIELDNAME    SY-PERNR  STD
+    "FIELDNAME    FORMNAME  STD
+    "FIELDNAME    TASKNAME  STD
+    "FIELDNAME    WIID      STD
+    "FIELDNAME    RETURN    STD
+    "FIELDNAME    MESSAGE   STD
+    "FIELDNAME    RESPPERNR STD
+
+    "FormData için
+    "FIELDNAME    PERNR
+
+    DATA : gv_formname  TYPE string,
+           gv_taskname  TYPE string,
+           gv_formevent TYPE string,
+           gv_formfield TYPE string,
+           gv_wiid      TYPE i,
+           gv_pernr     TYPE pernr_d,
+           gv_begda     TYPE datum,
+           gv_error .
+
+
+    read_values 'Std' 'FORMNAME' gv_formname.
+    CHECK sy-subrc = 0 .
+
+    read_values : 'Std' 'TASKNAME'      gv_taskname ,
+                  'Std' 'FORMEVENT'     gv_formevent,
+                  'Std' 'POSTBACKFIELD' gv_formfield,
+                  'Std' 'WIID'          gv_wiid .
+    read_values 'Std' 'BEGDA' gv_begda .
+
+    DATA : lv_field_value TYPE string .
+
+    CASE gv_formevent .
+      WHEN 'GET' .
+
+* PERNR_LP - Personel listesi doldurma
+        DATA: lt_0000 TYPE TABLE OF pa0000 .
+        TYPES: BEGIN OF ls_pernr_type ,
+                 pernr TYPE pernr_d,
+                 ename TYPE emnam,
+               END OF ls_pernr_type .
+        DATA: lt_pernr TYPE TABLE OF ls_pernr_type,
+              ls_pernr TYPE ls_pernr_type.
+
+        SELECT * FROM pa0000 INTO TABLE lt_0000
+          WHERE begda LE sy-datum AND endda GE sy-datum
+          AND   stat2 <> '0' .
+
+        SELECT pernr ename FROM pa0001 INTO CORRESPONDING FIELDS OF TABLE lt_pernr
+          FOR ALL  ENTRIES IN lt_0000
+          WHERE pernr = lt_0000-pernr.
+        "AND   bukrs = '1000' .
+
+        LOOP AT lt_pernr INTO ls_pernr .
+          CONCATENATE ls_pernr-pernr ls_pernr-ename INTO  lv_field_value SEPARATED BY '-'.
+          insert_values 'Add_Item' 'ENAME_LP' lv_field_value.
+        ENDLOOP.
+
+* CATEGORY_LR - İşten Çıkış Kategorileri doldurma
+*        DATA: ls_reason TYPE zhr_pa_term_rsns .
+*        SELECT * FROM zhr_pa_term_rsns INTO ls_reason .
+*          CONCATENATE ls_reason-massg ls_reason-massg_sub INTO lv_field_value .
+*          CONCATENATE lv_field_value ls_reason-massg_sub_t INTO lv_field_value SEPARATED BY '-' .
+*          insert_values 'Add_Item' 'CATEGORY_LR' lv_field_value.
+*        ENDSELECT .
+
+
+      WHEN 'POSTBACK'.
+
+        read_values : 'FormData' 'ENAME_LP' gv_pernr.
+        CASE gv_formfield.
+
+
+          WHEN 'ENAME_LP' .
+            DATA : ls_0001 TYPE pa0001 .
+            DATA : lv_text       TYPE stext, lv_btrtl_text TYPE btrtx .
+
+* 0001 BT verisi
+            SELECT SINGLE * FROM pa0001 INTO ls_0001 WHERE pernr = gv_pernr
+                                                     AND begda LE sy-datum AND endda GE sy-datum .
+* Pozisyon metni
+            SELECT SINGLE stext FROM hrp1000 INTO lv_text
+              WHERE plvar = '01'
+              AND   otype = 'S'
+              AND   objid = ls_0001-plans
+              AND   begda LE sy-datum AND endda GE sy-datum
+              AND   langu = sy-langu .
+            CLEAR lv_field_value.
+            CONCATENATE ls_0001-plans lv_text INTO lv_field_value SEPARATED BY ' - ' .
+            insert_values 'Set_Value' 'PLANS' lv_field_value.
+
+* Organizasyon Birimi Metni
+            SELECT SINGLE stext FROM hrp1000 INTO lv_text
+              WHERE plvar = '01'
+              AND   otype = 'O'
+              AND   objid = ls_0001-orgeh
+              AND   begda LE sy-datum AND endda GE sy-datum
+              AND   langu = sy-langu .
+            CLEAR lv_field_value.
+            CONCATENATE ls_0001-orgeh lv_text INTO lv_field_value SEPARATED BY ' - ' .
+            insert_values 'Set_Value' 'ORGEH' lv_field_value.
+
+* İşletme Metni - Personel Alt Alanı
+            SELECT SINGLE btext FROM t001p INTO lv_btrtl_text
+              WHERE werks = ls_0001-werks AND btrtl = ls_0001-btrtl .
+            CONCATENATE ls_0001-btrtl lv_btrtl_text INTO lv_field_value SEPARATED BY ' - ' .
+            insert_values 'Set_Value' 'BTRTL' lv_field_value.
+
+* İşe Giriş Tarihi
+            TYPE-POOLS p99sh .
+            DATA : ls_phifi TYPE p99sh_phifi,
+                   lt_phifi TYPE TABLE OF p99sh_phifi.
+
+            CALL FUNCTION 'HR_99S_HIRE_FIRE'
+              EXPORTING
+                p_pernr = gv_pernr
+                p_begda = sy-datum
+                p_endda = sy-datum
+              IMPORTING
+                p_phifi = lt_phifi[].
+            SORT lt_phifi BY begda DESCENDING.
+            LOOP AT lt_phifi INTO ls_phifi WHERE active = 'X' .
+              insert_values 'Set_Value' 'BEGDA' ls_phifi-begda."lv_field_value.
+              EXIT.
+            ENDLOOP .
+
+        ENDCASE .
+
+
+
+
+    ENDCASE .
+
+    CASE gv_taskname .
+      WHEN 'DOSUBMIT' .
+
+      WHEN 'DOAPPROVE' .
+
+    ENDCASE .
+
+    CREATE OBJECT lo_json_serializer
+      EXPORTING
+        data = omodel.
+
+    CALL METHOD lo_json_serializer->serialize.
+
+    CALL METHOD lo_json_serializer->get_data
+      RECEIVING
+        rval = l_json.
+
+    REPLACE ALL OCCURRENCES OF 'command'   IN l_json WITH '"Command"'  IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF 'fieldname' IN l_json WITH '"Fieldname"'  IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF 'data'      IN l_json WITH '"Data"'   IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF 'param1'      IN l_json WITH '"Param1"'   IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF 'param2'      IN l_json WITH '"Param2"'   IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF 'param3'      IN l_json WITH '"Param3"'   IN CHARACTER MODE.
+    REPLACE ALL OCCURRENCES OF 'param4'      IN l_json WITH '"Param4"'   IN CHARACTER MODE.
+
+*Sets the content type of the response
+    CALL METHOD server->response->set_header_field(
+        name  = 'Content-Type'
+        value = 'application/json; charset=iso-8859-1' ).
+
+*Return the results to JSON format
+    CALL METHOD server->response->set_cdata( data = l_json ).
+
+  ENDMETHOD.
